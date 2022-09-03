@@ -14,9 +14,15 @@ from .base import BaseWorker
 
 
 class HashlookupWorker(BaseWorker):
-
-    def __init__(self, module: str, worker_id: int, cache: str, timeout: str,
-                 loglevel: int=logging.DEBUG, **options):
+    def __init__(
+        self,
+        module: str,
+        worker_id: int,
+        cache: str,
+        timeout: str,
+        loglevel: int = logging.DEBUG,
+        **options,
+    ):
         super().__init__(module, worker_id, cache, timeout, loglevel, **options)
 
         try:
@@ -27,29 +33,29 @@ class HashlookupWorker(BaseWorker):
             self.disabled = True
 
     def _check_result(self, result: Dict[str, Any]) -> Tuple[Optional[bool], Dict]:
-        if 'message' in result:
+        if "message" in result:
             # Unknown in db
             return None, {}
 
         legit = None
         details = {}
-        if 'KnownMalicious' in result:
+        if "KnownMalicious" in result:
             legit = False
-            details['malicious'] = result['KnownMalicious']
+            details["malicious"] = result["KnownMalicious"]
 
-        if 'hashlookup:trust' in result:
-            if 'source' in result:
-                details['source'] = result['source']
-            if 'FileName' in result:
-                details['filename'] = result['FileName']
-            if result['hashlookup:trust'] < 50:
+        if "hashlookup:trust" in result:
+            if "source" in result:
+                details["source"] = result["source"]
+            if "FileName" in result:
+                details["filename"] = result["FileName"]
+            if result["hashlookup:trust"] < 50:
                 legit = False
             elif legit is not False:
                 legit = True
         return legit, details
 
-    def analyse(self, task: Task, report: Report, manual_trigger: bool=False):
-        self.logger.debug(f'analysing file {task.file.path}...')
+    def analyse(self, task: Task, report: Report, manual_trigger: bool = False):
+        self.logger.debug(f"analysing file {task.file.path}...")
         # Run a lookup against all the hashes, as hashlookup gaters multiple
         # sources with different hashes available
         result_md5 = self.hashlookup.md5_lookup(task.file.md5)
@@ -71,8 +77,8 @@ class HashlookupWorker(BaseWorker):
             report.status = Status.CLEAN
 
         if md5_legit is not None:
-            report.add_details('md5', md5_details)
+            report.add_details("md5", md5_details)
         if sha1_legit is not None:
-            report.add_details('sha1', sha1_details)
+            report.add_details("sha1", sha1_details)
         if sha256_legit is not None:
-            report.add_details('sha256', sha256_details)
+            report.add_details("sha256", sha256_details)

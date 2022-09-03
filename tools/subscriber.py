@@ -15,7 +15,7 @@ from pandora.default import get_config
 p = Pandora()
 subscriber = p.redis.pubsub()
 
-subscriber.subscribe(get_config('generic', 'channels')['channel_submission'])
+subscriber.subscribe(get_config("generic", "channels")["channel_submission"])
 while True:
     msg = subscriber.get_message()
     if msg:

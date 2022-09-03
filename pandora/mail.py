@@ -18,18 +18,20 @@ class Mail:
         :param (int) smtp_port: SMTP server port
         :return (bool): whether if email has been correctly sent
         """
-        email_config = get_config('generic', 'email')
+        email_config = get_config("generic", "email")
 
-        assert subject, 'subject cannot be empty'
+        assert subject, "subject cannot be empty"
 
         msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = email_config['from']
-        msg['To'] = ', '.join(email_config['to'])
+        msg["Subject"] = subject
+        msg["From"] = email_config["from"]
+        msg["To"] = ", ".join(email_config["to"])
         msg.set_content(message)
 
         try:
-            server = smtplib.SMTP(host=email_config['smtp_host'], port=email_config['smtp_port'])
+            server = smtplib.SMTP(
+                host=email_config["smtp_host"], port=email_config["smtp_port"]
+            )
             server.send_message(msg)
             server.quit()
         except smtplib.SMTPException:

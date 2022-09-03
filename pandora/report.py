@@ -6,8 +6,14 @@ from .helpers import Status
 
 
 class Report:
-    def __init__(self, task_uuid: str, worker_name: str, status: Optional[str]= None,
-                 details: Optional[str]=None, extras: Optional[str]=None,):
+    def __init__(
+        self,
+        task_uuid: str,
+        worker_name: str,
+        status: Optional[str] = None,
+        details: Optional[str] = None,
+        extras: Optional[str] = None,
+    ):
         """
         Generate module report.
         :param kwargs: arguments to set in this report
@@ -30,19 +36,29 @@ class Report:
 
     @property
     def to_dict(self):
-        return {k: v for k, v in {
-            'task_uuid': self.task_uuid,
-            'worker_name': self.worker_name,
-            'status': self.status.name,
-            'duration': self.duration,
-            'cache': getattr(self, 'cache', None),
-            'start_date': getattr(self, 'start_date', None),
-            'end_date': getattr(self, 'end_date', None),
-            'error': getattr(self, 'error', None),
-            'error_trace': getattr(self, 'error_trace', None),
-            'details': json.dumps({key: json.dumps(value) for key, value in self.details.items()}) if self.details else None,
-            'extras': json.dumps({key: value for key, value in self.extras.items()}) if self.extras else None,
-        }.items() if v is not None}
+        return {
+            k: v
+            for k, v in {
+                "task_uuid": self.task_uuid,
+                "worker_name": self.worker_name,
+                "status": self.status.name,
+                "duration": self.duration,
+                "cache": getattr(self, "cache", None),
+                "start_date": getattr(self, "start_date", None),
+                "end_date": getattr(self, "end_date", None),
+                "error": getattr(self, "error", None),
+                "error_trace": getattr(self, "error_trace", None),
+                "details": json.dumps(
+                    {key: json.dumps(value) for key, value in self.details.items()}
+                )
+                if self.details
+                else None,
+                "extras": json.dumps({key: value for key, value in self.extras.items()})
+                if self.extras
+                else None,
+            }.items()
+            if v is not None
+        }
 
     @property
     def status(self) -> Status:
@@ -103,10 +119,14 @@ class Report:
         else:
             if isinstance(self._details[details_name], str):
                 if isinstance(details, dict):
-                    raise Exception('Unable to concatenate a str with a dict')
-                self._details[details_name] = {self._details[details_name], }
+                    raise Exception("Unable to concatenate a str with a dict")
+                self._details[details_name] = {
+                    self._details[details_name],
+                }
             if isinstance(details, str):
-                details = {details, }
+                details = {
+                    details,
+                }
             self._details[details_name] |= details
 
     def clear_details(self):

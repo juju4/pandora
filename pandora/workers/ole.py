@@ -14,6 +14,7 @@ from oletools.oleid import RISK  # type: ignore
 from oletools.oleobj import get_logger, find_ole, find_external_relationships, OleObject  # type: ignore
 from oletools.olevba import VBA_Parser  # type: ignore
 from oletools.rtfobj import RtfObjParser, re_executable_extensions  # type: ignore
+
 # from oletools.thirdparty.xxxswf import xxxswf  # type: ignore
 
 from ..helpers import Status
@@ -26,11 +27,17 @@ from .base import BaseWorker
 
 
 class Ole(BaseWorker):
-
-    def __init__(self, module: str, worker_id: int, cache: str, timeout: str,
-                 loglevel: int=logging.DEBUG, **options):
+    def __init__(
+        self,
+        module: str,
+        worker_id: int,
+        cache: str,
+        timeout: str,
+        loglevel: int = logging.DEBUG,
+        **options,
+    ):
         super().__init__(module, worker_id, cache, timeout, loglevel, **options)
-        log = get_logger('oleobj')
+        log = get_logger("oleobj")
         log.setLevel(logging.DEBUG)
         # log = get_logger('olevba')
         # log.setLevel(logging.DEBUG)
@@ -43,7 +50,7 @@ class Ole(BaseWorker):
                 try:
                     attribute = attribute.decode()
                 except UnicodeDecodeError:
-                    self.logger.debug(f'Unable to decode {attrib}')
+                    self.logger.debug(f"Unable to decode {attrib}")
                     continue
             if isinstance(attribute, datetime):
                 attribute = attribute.isoformat()
@@ -53,53 +60,63 @@ class Ole(BaseWorker):
         return to_return
 
     def process_ole(self, ole) -> Tuple[Status, Dict]:
-        details = {'malicious': ''}
+        details = {"malicious": ""}
         status = Status.CLEAN
         if ole.format_id == OleObject.TYPE_EMBEDDED:
-            details['format'] = 'Embedded'
+            details["format"] = "Embedded"
         elif ole.format_id == OleObject.TYPE_LINKED:
-            details['format'] = 'Linked'
+            details["format"] = "Linked"
         else:
-            details['format'] = 'Unknown'
+            details["format"] = "Unknown"
         if ole.is_package:
             status = Status.WARN
-            details['package'] = f'Filename: {ole.filename}\nSource path: {ole.src_path}\nTemp path = {ole.temp_path}\nMD5 = {ole.olepkgdata_md5}'
+            details[
+                "package"
+            ] = f"Filename: {ole.filename}\nSource path: {ole.src_path}\nTemp path = {ole.temp_path}\nMD5 = {ole.olepkgdata_md5}"
             _, temp_ext = os.path.splitext(ole.temp_path)
             _, file_ext = os.path.splitext(ole.filename)
             if temp_ext != file_ext:
                 status = Status.ALERT
-                details['malicious'] += f'Modified extension {temp_ext} -> {file_ext}'
-            if re_executable_extensions.match(temp_ext) or re_executable_extensions.match(file_ext):
+                details["malicious"] += f"Modified extension {temp_ext} -> {file_ext}"
+            if re_executable_extensions.match(
+                temp_ext
+            ) or re_executable_extensions.match(file_ext):
                 status = Status.ALERT
-                details['malicious'] += f'Embedded file executable: {temp_ext} - {file_ext}'
+                details[
+                    "malicious"
+                ] += f"Embedded file executable: {temp_ext} - {file_ext}"
         else:
-            if hasattr(ole, 'olepkgdata_md5'):
-                details['ole'] = f'MD5 = {ole.olepkgdata_md5}'
+            if hasattr(ole, "olepkgdata_md5"):
+                details["ole"] = f"MD5 = {ole.olepkgdata_md5}"
 
         if ole.clsid is not None:
-            details['CLSID'] = ole.clsid
-            details['CLSID description'] = ole.clsid_desc
-            if 'CVE' in ole.clsid_desc:
+            details["CLSID"] = ole.clsid
+            details["CLSID description"] = ole.clsid_desc
+            if "CVE" in ole.clsid_desc:
                 status = Status.ALERT
 
-        if ole.class_name == b'OLE2Link':
+        if ole.class_name == b"OLE2Link":
             status = Status.ALERT
-            details['exploit'] = 'Possibly an exploit for the OLE2Link vulnerability (VU#921560, CVE-2017-0199)'
-            pat = re.compile(b'(?:[\\x20-\\x7E][\\x00]){3,}')
-            words = [w.decode('utf-16le') for w in pat.findall(ole.oledata)]
+            details[
+                "exploit"
+            ] = "Possibly an exploit for the OLE2Link vulnerability (VU#921560, CVE-2017-0199)"
+            pat = re.compile(b"(?:[\\x20-\\x7E][\\x00]){3,}")
+            words = [w.decode("utf-16le") for w in pat.findall(ole.oledata)]
             urls: Set[str] = set()
             for w in words:
                 if "http" in w:
                     urls.add(w)
                 else:
                     print(w)
-            details['URLs'] = sorted(urls)  # type: ignore
-        elif ole.class_name.lower().startswith(b'equation.3'):
+            details["URLs"] = sorted(urls)  # type: ignore
+        elif ole.class_name.lower().startswith(b"equation.3"):
             status = Status.ALERT
-            details['exploit'] = 'Possibly an exploit for the Equation Editor vulnerability (VU#421280, CVE-2017-11882)'
+            details[
+                "exploit"
+            ] = "Possibly an exploit for the Equation Editor vulnerability (VU#421280, CVE-2017-11882)"
 
-        if not details['malicious']:
-            details.pop('malicious')
+        if not details["malicious"]:
+            details.pop("malicious")
         return status, details
 
     def _process_macros(self, filetype: FileTypeGuesser):
@@ -107,16 +124,18 @@ class Ole(BaseWorker):
         # Code copied from: https://github.com/decalage2/oletools/blob/master/oletools/oleid.py#L415
         details = defaultdict(list)
         vba_parser = VBA_Parser(filetype.filepath)
-        for type_entry, keyword, description in vba_parser.analyze_macros(show_decoded_strings=True, deobfuscate=False):
+        for type_entry, keyword, description in vba_parser.analyze_macros(
+            show_decoded_strings=True, deobfuscate=False
+        ):
             details[type_entry].append(description)
         return Status.ALERT, details
 
-    def analyse(self, task: Task, report: Report, manual_trigger: bool=False):
+    def analyse(self, task: Task, report: Report, manual_trigger: bool = False):
         if not task.file.data:
             report.status = Status.NOTAPPLICABLE
             return
 
-        self.logger.debug(f'analysing file {task.file.path}...')
+        self.logger.debug(f"analysing file {task.file.path}...")
         oid = oleid.OleID(task.file.path)
         # We must initialize a bunch of internal variables in order to run the calls below
         # And we cannot simply run oid.check() because it closes the olefile
@@ -139,8 +158,8 @@ class Ole(BaseWorker):
             meta = oid.ole.get_metadata()
             summary = self._get_meta_attributes(meta, meta.SUMMARY_ATTRIBS)
             docsum = self._get_meta_attributes(meta, meta.DOCSUM_ATTRIBS)
-            report.add_details('summary', summary)
-            report.add_details('docsum', docsum)
+            report.add_details("summary", summary)
+            report.add_details("docsum", docsum)
 
             # Check encryption
             encryption = oid.check_encrypted()
@@ -194,15 +213,17 @@ class Ole(BaseWorker):
             # same as oid.check_external_relationships(), but gets the details.
             # rel_type is one of BLACKLISTED_RELATIONSHIP_TYPES in https://github.com/decalage2/oletools/blob/master/oletools/oleobj.py
             for rel_type, attribute in find_external_relationships(xmlparser):
-                if rel_type == 'hyperlink':
-                    task.add_observable(attribute, 'url')
+                if rel_type == "hyperlink":
+                    task.add_observable(attribute, "url")
                 else:
                     report.status = Status.ALERT
-                    malicious.append(f'{rel_type} - {attribute}')
+                    malicious.append(f"{rel_type} - {attribute}")
 
-            for olefile in find_ole(task.file.original_filename, task.file.data.getvalue()):
+            for olefile in find_ole(
+                task.file.original_filename, task.file.data.getvalue()
+            ):
                 report.status = Status.ALERT
-                malicious.append('Has embedded OLE resource.')
+                malicious.append("Has embedded OLE resource.")
                 # TODO Process as a normal olefile
 
         elif oid.ftg.filetype == FTYPE.RTF:
@@ -230,8 +251,9 @@ class Ole(BaseWorker):
             #        f = BytesIO(obj.rawdata)
             #        xxxswf.disneyland(f, name, options)
 
-        if (issubclass(oid.ftg.ftype, FType_Generic_OLE)
-                or issubclass(oid.ftg.ftype, FType_Generic_OpenXML)):
+        if issubclass(oid.ftg.ftype, FType_Generic_OLE) or issubclass(
+            oid.ftg.ftype, FType_Generic_OpenXML
+        ):
             # Macros, RTF don't have that
             vba_indicator, xlm_indicator = oid.check_macros()
             info.append(vba_indicator.description)
@@ -246,8 +268,8 @@ class Ole(BaseWorker):
                     report.add_details(k, v)
 
         if malicious:
-            report.add_details('malicious', malicious)
+            report.add_details("malicious", malicious)
         if suspicious:
-            report.add_details('suspicious', suspicious)
+            report.add_details("suspicious", suspicious)
         if info:
-            report.add_details('info', info)
+            report.add_details("info", info)

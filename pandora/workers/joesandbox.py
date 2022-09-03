@@ -17,16 +17,27 @@ class JoeSandboxWorker(BaseWorker):
     apikey: str
     apiurl: str
 
-    def __init__(self, module: str, worker_id: int, cache: str, timeout: str,
-                 loglevel: int=logging.INFO, **options):
+    def __init__(
+        self,
+        module: str,
+        worker_id: int,
+        cache: str,
+        timeout: str,
+        loglevel: int = logging.INFO,
+        **options,
+    ):
         super().__init__(module, worker_id, cache, timeout, loglevel, **options)
         if not self.apikey:
             self.disabled = True
-            self.logger.warning('Disabled, missing apikey.')
+            self.logger.warning("Disabled, missing apikey.")
             return
 
-        self.joesb = JoeSandbox(apikey=self.apikey, apiurl=self.apiurl,
-                                accept_tac=True, user_agent=get_useragent_for_requests())
+        self.joesb = JoeSandbox(
+            apikey=self.apikey,
+            apiurl=self.apiurl,
+            accept_tac=True,
+            user_agent=get_useragent_for_requests(),
+        )
         try:
             response = self.joesb.account_info()
             self.logger.debug(response)
@@ -34,9 +45,9 @@ class JoeSandboxWorker(BaseWorker):
             self.logger.warning(e)
             self.disabled = True
 
-    def analyse(self, task: Task, report: Report, manual_trigger: bool=False):
+    def analyse(self, task: Task, report: Report, manual_trigger: bool = False):
         try:
-            self.logger.debug(f'analysing file {task.file.path}...')
+            self.logger.debug(f"analysing file {task.file.path}...")
             result = self.joesb.analysis_search(task.file.sha256)
             if not result:
                 report.status = Status.NOTAPPLICABLE
@@ -45,16 +56,16 @@ class JoeSandboxWorker(BaseWorker):
             malicious = []
             # We check all webid
             for entries in result:
-                if 'webid' not in entries:
+                if "webid" not in entries:
                     continue
                 # we get all the results of analysis
-                result_analysis = self.joesb.analysis_info(entries['webid'])
-                if result_analysis['detection'] == 'malicious':
+                result_analysis = self.joesb.analysis_info(entries["webid"])
+                if result_analysis["detection"] == "malicious":
                     report.status = Status.ALERT
-                    malicious.append(result_analysis['threatname'])
+                    malicious.append(result_analysis["threatname"])
             if malicious:
-                report.add_details('malicious', set(malicious))
+                report.add_details("malicious", set(malicious))
         except JoeException as e:
-            err = f'{repr(e)}\n{traceback.format_exc()}'
-            self.logger.error(f'unknown error during analysis : {err}')
+            err = f"{repr(e)}\n{traceback.format_exc()}"
+            self.logger.error(f"unknown error during analysis : {err}")
             report.status = Status.ERROR

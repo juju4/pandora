@@ -6,11 +6,16 @@ from .storage_client import Storage
 
 
 class User:
-
-    def __init__(self, session_id: str, *, last_ip: str, name: Optional[str]=None,
-                 first_seen: Optional[Union[str, datetime]]=None,
-                 last_seen: Optional[Union[str, datetime]]=None,
-                 role: Union[str, RoleName, Role]=RoleName.other):
+    def __init__(
+        self,
+        session_id: str,
+        *,
+        last_ip: str,
+        name: Optional[str] = None,
+        first_seen: Optional[Union[str, datetime]] = None,
+        last_seen: Optional[Union[str, datetime]] = None,
+        role: Union[str, RoleName, Role] = RoleName.other,
+    ):
         """
         Generate User object for flask_login.
         :param session_id: session uid
@@ -71,17 +76,22 @@ class User:
 
     @property
     def to_dict(self) -> Dict[str, str]:
-        return {k: v for k, v in {'session_id': self.session_id, 'name': self.name,
-                                  'first_seen': self.first_seen.isoformat(),
-                                  'last_seen': self.last_seen.isoformat(),
-                                  'role': self.role.name.name if self.role else RoleName.other.name,
-                                  'last_ip': self.last_ip}.items()
-                if v
-                }
+        return {
+            k: v
+            for k, v in {
+                "session_id": self.session_id,
+                "name": self.name,
+                "first_seen": self.first_seen.isoformat(),
+                "last_seen": self.last_seen.isoformat(),
+                "role": self.role.name.name if self.role else RoleName.other.name,
+                "last_ip": self.last_ip,
+            }.items()
+            if v
+        }
 
     @property
     def store(self):
         self.storage.set_user(self.to_dict)
 
     def __repr__(self):
-        return f'User(name={self.name}, session_id={self.session_id}, role={self.role.name})'
+        return f"User(name={self.name}, session_id={self.session_id}, role={self.role.name})"

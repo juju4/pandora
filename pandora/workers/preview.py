@@ -7,8 +7,7 @@ from .base import BaseWorker
 
 
 class Preview(BaseWorker):
-
-    def analyse(self, task: Task, report: Report, manual_trigger: bool=False):
+    def analyse(self, task: Task, report: Report, manual_trigger: bool = False):
         try:
             task.file.convert()
             task.file.make_previews()
@@ -16,6 +15,6 @@ class Preview(BaseWorker):
             report.status = Status.NOTAPPLICABLE
         except Exception as e:
             self.logger.exception(e)
-            self.logger.warning(f'Unable to generate preview, this is suspicious: {e}')
+            self.logger.warning(f"Unable to generate preview, this is suspicious: {e}")
             report.status = Status.WARN
-            report.add_details('suspicious', f'Unable to generate preview: {e}')
+            report.add_details("suspicious", f"Unable to generate preview: {e}")
