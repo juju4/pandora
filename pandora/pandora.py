@@ -20,19 +20,16 @@ from .user import User
 from .storage_client import Storage
 
 
-class Pandora():
-
+class Pandora:
     def __init__(self) -> None:
-        self.logger = logging.getLogger(f'{self.__class__.__name__}')
-        self.logger.setLevel(get_config('generic', 'loglevel'))
+        self.logger = logging.getLogger(f"{self.__class__.__name__}")
+        self.logger.setLevel(get_config("generic", "loglevel"))
 
         self.redis_pool_cache: ConnectionPool = ConnectionPool(
-            connection_class=UnixDomainSocketConnection,
-            path=get_socket_path('cache'), decode_responses=True)
+            connection_class=UnixDomainSocketConnection, path=get_socket_path("cache"), decode_responses=True
+        )
 
-        self.redis_pool_cache_bytes: ConnectionPool = ConnectionPool(
-            connection_class=UnixDomainSocketConnection,
-            path=get_socket_path('cache'))
+        self.redis_pool_cache_bytes: ConnectionPool = ConnectionPool(connection_class=UnixDomainSocketConnection, path=get_socket_path("cache"))
 
         self.storage: Storage = Storage()
 
@@ -73,7 +70,7 @@ class Pandora():
     def get_role(self, role_name: Union[str, RoleName]) -> Role:
         if isinstance(role_name, RoleName):
             role_name = role_name.name
-        r = self.storage.storage.hgetall(f'roles:{role_name}')
+        r = self.storage.storage.hgetall(f"roles:{role_name}")
         if not r:
             raise Exception(f'Unknown role: "{role_name}"')
         return Role(**r)
@@ -116,30 +113,23 @@ class Pandora():
         _file.save()
         return self.enqueue_task(_file, user, disabled_workers)
     """
+
     def enqueue_task(self, task: Task) -> str:
         """
         Enqueue a task for processing.
         """
-        fields = {
-            'task_uuid': task.uuid,
-            'disabled_workers': json.dumps(task.disabled_workers)
-        }
-        self.redis.xadd(name='tasks_queue', fields=fields, id='*',
-                        maxlen=get_config('generic', 'tasks_max_len'))
+        fields = {"task_uuid": task.uuid, "disabled_workers": json.dumps(task.disabled_workers)}
+        self.redis.xadd(name="tasks_queue", fields=fields, id="*", maxlen=get_config("generic", "tasks_max_len"))
         return task.uuid
 
     def trigger_manual_worker(self, task: Task, worker: str):
-        fields = {
-            'task_uuid': task.uuid,
-            'manual_worker': worker
-        }
-        self.redis.xadd(name='tasks_queue', fields=fields, id='*',
-                        maxlen=get_config('generic', 'tasks_max_len'))
+        fields = {"task_uuid": task.uuid, "manual_worker": worker}
+        self.redis.xadd(name="tasks_queue", fields=fields, id="*", maxlen=get_config("generic", "tasks_max_len"))
 
     def add_extracted_reference(self, task: Task, extracted_task: Task):
         self.storage.add_extracted_reference(task.uuid, extracted_task.uuid)
 
-    def get_tasks(self, user: User, *, first_date: Union[datetime, int, float, str]=0, last_date: Union[datetime, int, float, str]='+Inf'):
+    def get_tasks(self, user: User, *, first_date: Union[datetime, int, float, str] = 0, last_date: Union[datetime, int, float, str] = "+Inf"):
         if isinstance(first_date, datetime):
             first_date = first_date.timestamp()
         if isinstance(last_date, datetime):
@@ -185,23 +175,23 @@ class Pandora():
     # #### Seed ####
 
     def get_seed_uuid(self, seed: str) -> Optional[str]:
-        return self.redis.get(f'seed:{seed}')
+        return self.redis.get(f"seed:{seed}")
 
-    def add_seed(self, task: Task, time: str, seed: Optional[str]=None) -> Tuple[str, int]:
+    def add_seed(self, task: Task, time: str, seed: Optional[str] = None) -> Tuple[str, int]:
         expire = expire_in_sec(time)
         if not seed:
             seed = secrets.token_urlsafe()
         if expire:
-            self.redis.setex(name=f'seed:{seed}', time=expire, value=task.uuid)
+            self.redis.setex(name=f"seed:{seed}", time=expire, value=task.uuid)
         else:
             # When seed is False (0, None)
-            self.redis.set(name=f'seed:{seed}', value=task.uuid)
+            self.redis.set(name=f"seed:{seed}", value=task.uuid)
         return seed, expire
 
     def is_seed_valid(self, task: Task, seed: str) -> bool:
         if task.uuid == self.get_seed_uuid(seed):
             return True
-        elif hasattr(task, 'parent') and task.parent:
+        elif hasattr(task, "parent") and task.parent:
             return self.is_seed_valid(task.parent, seed)
         return False
 
@@ -219,7 +209,7 @@ class Pandora():
     # #### Other ####
 
     def get_enabled_workers(self) -> Set[str]:
-        return self.redis.smembers('enabled_workers')
+        return self.redis.smembers("enabled_workers")
 
     # #### pubsub ####
 

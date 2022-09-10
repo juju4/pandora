@@ -1,4 +1,4 @@
-env_global_name: str = 'PANDORA_HOME'
+env_global_name: str = "PANDORA_HOME"
 
 from .exceptions import PandoraException  # noqa
 

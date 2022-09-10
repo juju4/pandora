@@ -22,54 +22,72 @@ class Task:
 
     _file: File
     _user: User
-    _parent: Optional['Task']
+    _parent: Optional["Task"]
 
     @classmethod
-    def new_task(cls, user: User, sample: BytesIO, filename: str, disabled_workers: List[str],
-                 parent: Optional['Task']=None, password: Optional[str]=None) -> 'Task':
+    def new_task(
+        cls, user: User, sample: BytesIO, filename: str, disabled_workers: List[str], parent: Optional["Task"] = None, password: Optional[str] = None
+    ) -> "Task":
         task_uuid = str(uuid4())
         today = datetime.now(timezone.utc)
-        directory = get_homedir() / 'tasks' / str(today.year) / f'{today.month:02}' / task_uuid
+        directory = get_homedir() / "tasks" / str(today.year) / f"{today.month:02}" / task_uuid
         safe_create_dir(directory)
         filepath = directory / secure_filename(filename)
-        with filepath.open('wb') as _f:
+        with filepath.open("wb") as _f:
             _f.write(sample.getvalue())
 
         file = File.new_file(filepath, filename=filename)
 
-        task = cls(uuid=task_uuid, submitted_file=file, disabled_workers=disabled_workers,
-                   user=user, parent=parent, password=password)
+        task = cls(uuid=task_uuid, submitted_file=file, disabled_workers=disabled_workers, user=user, parent=parent, password=password)
         task.store(force=True)
         return task
 
     @overload
-    def __init__(self, uuid: str, submitted_file: File,
-                 user: User,
-                 parent: Optional['Task']=None,
-                 status: Optional[Status]=None,
-                 done: bool=False,
-                 disabled_workers: List[str]=[],
-                 password: Optional[str]=None):
-        '''With python classes'''
+    def __init__(
+        self,
+        uuid: str,
+        submitted_file: File,
+        user: User,
+        parent: Optional["Task"] = None,
+        status: Optional[Status] = None,
+        done: bool = False,
+        disabled_workers: List[str] = [],
+        password: Optional[str] = None,
+    ):
+        """With python classes"""
         ...
 
     @overload
-    def __init__(self, uuid: str, file_id: str, user_id: str, save_date: str,
-                 parent_id: Optional[str]=None,
-                 status: Optional[str]=None,
-                 done: bool=False,
-                 disabled_workers: Optional[str]=None,
-                 password: Optional[str]=None):
-        '''From redis'''
+    def __init__(
+        self,
+        uuid: str,
+        file_id: str,
+        user_id: str,
+        save_date: str,
+        parent_id: Optional[str] = None,
+        status: Optional[str] = None,
+        done: bool = False,
+        disabled_workers: Optional[str] = None,
+        password: Optional[str] = None,
+    ):
+        """From redis"""
         ...
 
-    def __init__(self, uuid,
-                 submitted_file=None, file_id=None,
-                 user=None, user_id=None, save_date=None,
-                 parent=None, parent_id=None,
-                 status=None, done=False,
-                 disabled_workers=[],
-                 password=None):
+    def __init__(
+        self,
+        uuid,
+        submitted_file=None,
+        file_id=None,
+        user=None,
+        user_id=None,
+        save_date=None,
+        parent=None,
+        parent_id=None,
+        status=None,
+        done=False,
+        disabled_workers=[],
+        password=None,
+    ):
         """
         Generate a Task object.
         :param uuid: Unique identifier of the task.
@@ -87,7 +105,7 @@ class Task:
             # New task
             self.uuid = str(uuid4())
 
-        assert submitted_file is not None or file_id is not None, 'submitted_file or file_id is required'
+        assert submitted_file is not None or file_id is not None, "submitted_file or file_id is required"
 
         if submitted_file:
             self.file = submitted_file
@@ -126,15 +144,15 @@ class Task:
         if password:
             self.password = password
         else:
-            self.password = ''
+            self.password = ""
         self.store()
 
     @property
     def user(self) -> Optional[User]:
-        if hasattr(self, '_user'):
+        if hasattr(self, "_user"):
             return self._user
-        elif hasattr(self, '_user_id'):
-            if (u := self.storage.get_user(self._user_id)):
+        elif hasattr(self, "_user_id"):
+            if u := self.storage.get_user(self._user_id):
                 self._user = User(**u)  # type: ignore
                 return self._user
         return None
@@ -145,34 +163,34 @@ class Task:
 
     @property
     def file(self) -> File:
-        if hasattr(self, '_file'):
+        if hasattr(self, "_file"):
             return self._file
-        elif hasattr(self, '_file_id'):
-            if (f := self.storage.get_file(self._file_id)):
+        elif hasattr(self, "_file_id"):
+            if f := self.storage.get_file(self._file_id):
                 self._file = File(**f)  # type: ignore
                 return self._file
-        raise PandoraException('missing file')
+        raise PandoraException("missing file")
 
     @file.setter
     def file(self, f: File) -> None:
         self._file = f
 
     @property
-    def parent(self) -> Optional['Task']:
-        if hasattr(self, '_parent'):
+    def parent(self) -> Optional["Task"]:
+        if hasattr(self, "_parent"):
             return self._parent
-        elif hasattr(self, '_parent_id'):
-            if (parent_task := self.storage.get_task(self._parent_id)):
+        elif hasattr(self, "_parent_id"):
+            if parent_task := self.storage.get_task(self._parent_id):
                 self._parent = Task(**parent_task)  # type: ignore
                 return self._parent
         return None
 
     @parent.setter
-    def parent(self, parent: 'Task'):
+    def parent(self, parent: "Task"):
         self._parent = parent
 
     @property
-    def extracted(self) -> List['Task']:
+    def extracted(self) -> List["Task"]:
         to_return = []
         for t_uuid in self.storage.get_extracted_references(self.uuid):
             extract = self.storage.get_task(t_uuid)
@@ -183,18 +201,22 @@ class Task:
 
     @property
     def to_dict(self) -> Dict[str, Any]:
-        return {k: v for k, v in {
-            'uuid': self.uuid,
-            'parent_id': self.parent.uuid if self.parent else None,
-            'file_id': self.file.uuid,
-            'user_id': self.user.get_id() if self.user else None,
-            'disabled_workers': json.dumps(self.disabled_workers) if hasattr(self, 'disabled_workers') else None,
-            'password': self.password if self.password else None,
-            'status': self.status.name,
-            'save_date': self.save_date.isoformat()
-        }.items() if v is not None}
+        return {
+            k: v
+            for k, v in {
+                "uuid": self.uuid,
+                "parent_id": self.parent.uuid if self.parent else None,
+                "file_id": self.file.uuid,
+                "user_id": self.user.get_id() if self.user else None,
+                "disabled_workers": json.dumps(self.disabled_workers) if hasattr(self, "disabled_workers") else None,
+                "password": self.password if self.password else None,
+                "status": self.status.name,
+                "save_date": self.save_date.isoformat(),
+            }.items()
+            if v is not None
+        }
 
-    def store(self, force: bool=False):
+    def store(self, force: bool = False):
         if force or (self.workers_done and self.status not in [Status.WAITING, Status.RUNNING]):
             self.storage.set_task(self.to_dict)
 
@@ -266,7 +288,7 @@ class Task:
     def status(self, _status: Status):
         self._status = _status
 
-    def add_observable(self, value: str, observable_type: str, seen: Optional[datetime]=None):
+    def add_observable(self, value: str, observable_type: str, seen: Optional[datetime] = None):
         if not seen:
             seen = datetime.now(timezone.utc)
         observable = Observable.new_observable(value, observable_type, seen)
@@ -279,7 +301,7 @@ class Task:
                 self.add_observable(value, observable_type, self.file.save_date)
                 nb_observables += 1
                 if nb_observables > 1000:
-                    raise TooManyObservables('This file has more than 1000 observables.')
+                    raise TooManyObservables("This file has more than 1000 observables.")
 
     @property
     def observables(self) -> List[Observable]:
@@ -288,13 +310,13 @@ class Task:
         return observables
 
     def __str__(self):
-        return f'<uuid: {self.uuid} - file: {self.file}>'
+        return f"<uuid: {self.uuid} - file: {self.file}>"
 
     def misp_export(self) -> MISPEvent:
-        public_url = get_config('generic', 'public_url')
+        public_url = get_config("generic", "public_url")
         event = MISPEvent()
-        event.info = f'Pandora analysis ({self.file.original_filename})'
-        pandora_link: MISPAttribute = event.add_attribute('link', f'{public_url}/analysis/{self.uuid}')  # type: ignore
+        event.info = f"Pandora analysis ({self.file.original_filename})"
+        pandora_link: MISPAttribute = event.add_attribute("link", f"{public_url}/analysis/{self.uuid}")  # type: ignore
         pandora_link.distribution = 0
         # Delegate population to file class as the objects will depend on the filetype.
         self.file.populate_misp_event(event)

@@ -19,12 +19,11 @@ class Irma(BaseWorker):
     apiurl: str
     apitimeout: int
 
-    def __init__(self, module: str, worker_id: int, cache: str, timeout: str,
-                 loglevel: int=logging.INFO, **options):
+    def __init__(self, module: str, worker_id: int, cache: str, timeout: str, loglevel: int = logging.INFO, **options):
         super().__init__(module, worker_id, cache, timeout, loglevel, **options)
         if not self.apiurl:
             self.disabled = True
-            self.logger.warning('Disabled, missing apiurl.')
+            self.logger.warning("Disabled, missing apiurl.")
             return
 
         if self.apitimeout:
@@ -36,12 +35,12 @@ class Irma(BaseWorker):
         async with irmacl_async.AAPI(config=config, anonymous=True) as api:
             scan = await api.scans.scan(pathlib.Path(task.file.path), linger=True, force=True)
 
-            link = urllib.parse.urljoin(self.apiurl, f'/scans/{scan.external_id}')
+            link = urllib.parse.urljoin(self.apiurl, f"/scans/{scan.external_id}")
             if scan.infected > 0:
                 report.status = Status.ALERT
             report.add_details('Click on "Sign in anonymously" button to reach IRMA report.', link)
 
-    def analyse(self, task: Task, report: Report, manual_trigger: bool=False):
+    def analyse(self, task: Task, report: Report, manual_trigger: bool = False):
         if task.file.is_archive:
             report.status = Status.NOTAPPLICABLE
             return

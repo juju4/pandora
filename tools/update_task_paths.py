@@ -10,13 +10,13 @@ s = Storage()
 
 for t in s.get_tasks():
     task = Task(**t)  # type: ignore
-    if task.file.directory.parent.name != 'tasks':
+    if task.file.directory.parent.name != "tasks":
         # file already moved
         continue
     if not task.file.directory.exists():
         # file deleted
         continue
-    new_dir = get_homedir() / 'tasks' / str(task.file.save_date.year) / f'{task.file.save_date.month:02}' / task.uuid
+    new_dir = get_homedir() / "tasks" / str(task.file.save_date.year) / f"{task.file.save_date.month:02}" / task.uuid
     safe_create_dir(new_dir.parent)
     shutil.move(task.file.directory, new_dir)
     task.file.path = new_dir / task.file.path.name

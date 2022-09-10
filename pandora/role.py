@@ -45,7 +45,6 @@ class Action(Enum):
 
 
 class Role:
-
     def __init__(self, name: str, description: str, actions: Union[Dict[str, bool], str]):
         assert name in RoleName.__members__.keys(), f"unexpected role name '{name}'"
         self.storage = Storage()
@@ -60,8 +59,8 @@ class Role:
 
     @property
     def to_dict(self) -> Dict[str, str]:
-        to_return = {'name': str(self.name.name), 'description': self.description}
-        to_return['actions'] = json.dumps({action.name: perm for action, perm in self.actions.items()})
+        to_return = {"name": str(self.name.name), "description": self.description}
+        to_return["actions"] = json.dumps({action.name: perm for action, perm in self.actions.items()})
         return to_return
 
     def store(self) -> None:
@@ -78,18 +77,18 @@ class Role:
             action = Action[action]
         self.actions[action] = value
 
-    def can(self, actions: Union[str, List[str], Action, List[Action]], operator: str='and') -> bool:
+    def can(self, actions: Union[str, List[str], Action, List[Action]], operator: str = "and") -> bool:
         """
         Property that returns True if role can do an action
         :param actions: action or list of actions
         :param operator: and/or operator
         :return: whether if the role is allowed to do the action
         """
-        assert operator in ('and', 'or'), f"unexpected operator '{operator}'"
+        assert operator in ("and", "or"), f"unexpected operator '{operator}'"
         if isinstance(actions, str):
             actions = Action[actions]
         if isinstance(actions, list):
-            if operator == 'and':
+            if operator == "and":
                 return all([self.can(action) for action in actions])
             else:
                 return any([self.can(action) for action in actions])

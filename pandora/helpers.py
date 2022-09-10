@@ -16,7 +16,7 @@ import yaml
 from .default import get_homedir
 from .role import Role
 
-logger = logging.getLogger('Helpers')
+logger = logging.getLogger("Helpers")
 
 
 # NOTE: Status code order for the UI: ALERT -> WARN -> CLEAN
@@ -50,30 +50,30 @@ class TypeObservable(Enum):
 
 @lru_cache(64)
 def allowlist_default() -> List[str]:
-    with (get_homedir() / 'config' / 'allowlist.yml').open() as config_file:
+    with (get_homedir() / "config" / "allowlist.yml").open() as config_file:
         config = yaml.safe_load(config_file.read())
-    return config['allowlist']
+    return config["allowlist"]
 
 
 @lru_cache(64)
 def roles_from_config() -> Dict[str, Role]:
-    with (get_homedir() / 'config' / 'roles.yml').open() as config_file:
+    with (get_homedir() / "config" / "roles.yml").open() as config_file:
         config = yaml.safe_load(config_file.read())
     to_return = {}
-    for r in config['roles']:
-        actions = {key[4:]: value for key, value in r.items() if key.startswith('can_')}
-        role = Role(name=r['name'], description=r['description'], actions=actions)
-        to_return[r['name']] = role
+    for r in config["roles"]:
+        actions = {key[4:]: value for key, value in r.items() if key.startswith("can_")}
+        role = Role(name=r["name"], description=r["description"], actions=actions)
+        to_return[r["name"]] = role
     return to_return
 
 
 @lru_cache(64)
 def workers() -> Dict[str, Dict[str, Any]]:
-    workers_dir = get_homedir() / 'pandora' / 'workers'
-    worker_default_config_file = workers_dir / 'base.yml'
+    workers_dir = get_homedir() / "pandora" / "workers"
+    worker_default_config_file = workers_dir / "base.yml"
     if not worker_default_config_file.exists():
-        logger.warning(f'Workers config file ({worker_default_config_file}) does not exists, falling back to default.')
-        worker_default_config_file = workers_dir / 'base.yml.sample'
+        logger.warning(f"Workers config file ({worker_default_config_file}) does not exists, falling back to default.")
+        worker_default_config_file = workers_dir / "base.yml.sample"
 
     # load default parameters
     with worker_default_config_file.open() as f:
@@ -81,32 +81,32 @@ def workers() -> Dict[str, Dict[str, Any]]:
 
     all_configs = {}
     # load all individual config files
-    for configfile in workers_dir.glob('*.yml'):
-        if configfile.name == 'base.yml':
+    for configfile in workers_dir.glob("*.yml"):
+        if configfile.name == "base.yml":
             continue
         with configfile.open() as f:
             module_config = yaml.safe_load(f.read())
 
         # get the default config from the sample file, as a fallback
         module_config_sample = {}
-        if (workers_dir / f'{configfile}.sample').exists():
-            with (workers_dir / f'{configfile}.sample').open() as f:
+        if (workers_dir / f"{configfile}.sample").exists():
+            with (workers_dir / f"{configfile}.sample").open() as f:
                 module_config_sample = yaml.safe_load(f.read())
 
         all_configs[configfile.stem] = {
-            'meta': {**default_config['meta'], **module_config_sample['meta'], **module_config['meta']},
-            'settings': default_config['settings'].copy()
+            "meta": {**default_config["meta"], **module_config_sample["meta"], **module_config["meta"]},
+            "settings": default_config["settings"].copy(),
         }
 
-        if 'settings' in module_config_sample:
-            all_configs[configfile.stem]['settings'].update(module_config_sample['settings'])
-        if 'settings' in module_config:
-            all_configs[configfile.stem]['settings'].update(module_config['settings'])
+        if "settings" in module_config_sample:
+            all_configs[configfile.stem]["settings"].update(module_config_sample["settings"])
+        if "settings" in module_config:
+            all_configs[configfile.stem]["settings"].update(module_config["settings"])
     return {name: all_configs[name] for name in sorted(all_configs)}
 
 
 def make_bool(value: Optional[Union[bool, int, str]]) -> bool:
-    if value in [True, 1, '1']:
+    if value in [True, 1, "1"]:
         return True
     return False
 
@@ -125,15 +125,15 @@ def expire_in_sec(time: Union[str, int]) -> int:
     """
     if not time:
         return 0
-    match = re.fullmatch(r'(\d+)([smhd]?)', str(time))
+    match = re.fullmatch(r"(\d+)([smhd]?)", str(time))
     assert match is not None, f"impossible to parse cache '{time}'"
-    if not match.group(2) or match.group(2) == 's':
+    if not match.group(2) or match.group(2) == "s":
         return int(timedelta(seconds=int(match.group(1))).total_seconds())
-    elif match.group(2) == 'm':
+    elif match.group(2) == "m":
         return int(timedelta(minutes=int(match.group(1))).total_seconds())
-    elif match.group(2) == 'h':
+    elif match.group(2) == "h":
         return int(timedelta(hours=int(match.group(1))).total_seconds())
-    elif match.group(2) == 'd':
+    elif match.group(2) == "d":
         return int(timedelta(days=int(match.group(1))).total_seconds())
     return 0
 
@@ -145,7 +145,7 @@ def get_public_suffix_list() -> PublicSuffixList:
         psl_file = fetch()
         psl = PublicSuffixList(psl_file=psl_file)
     except Exception as e:
-        logging.getLogger(__name__).warning(f'Unable to fetch the PublicSuffixList: {e}')
+        logging.getLogger(__name__).warning(f"Unable to fetch the PublicSuffixList: {e}")
         psl = PublicSuffixList()
     return psl
 
@@ -157,22 +157,22 @@ def get_warninglists() -> WarningLists:
 
 @lru_cache(64)
 def get_disclaimers() -> Dict[str, str]:
-    disclaimer_path = get_homedir() / 'config' / 'disclaimer.tmpl'
+    disclaimer_path = get_homedir() / "config" / "disclaimer.tmpl"
     if not disclaimer_path.exists():
-        disclaimer_path = get_homedir() / 'config' / 'disclaimer.tmpl.sample'
-    special_disclaimer_path = get_homedir() / 'config' / 'special_disclaimer.tmpl'
-    to_return = {'disclaimer': '', 'special_disclaimer': ''}
+        disclaimer_path = get_homedir() / "config" / "disclaimer.tmpl.sample"
+    special_disclaimer_path = get_homedir() / "config" / "special_disclaimer.tmpl"
+    to_return = {"disclaimer": "", "special_disclaimer": ""}
     with disclaimer_path.open() as f:
-        to_return['disclaimer'] = f.read()
+        to_return["disclaimer"] = f.read()
     if special_disclaimer_path.exists():
         with special_disclaimer_path.open() as f:
-            to_return['special_disclaimer'] = f.read()
+            to_return["special_disclaimer"] = f.read()
     return to_return
 
 
 @lru_cache(64)
 def get_email_template() -> str:
-    with (get_homedir() / 'config' / 'email.tmpl').open() as f:
+    with (get_homedir() / "config" / "email.tmpl").open() as f:
         return f.read()
 
 

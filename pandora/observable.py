@@ -14,9 +14,8 @@ from .storage_client import Storage
 
 
 class Observable:
-
     @classmethod
-    def new_observable(cls, value: str, observable_type: str, seen: Optional[datetime]=None):
+    def new_observable(cls, value: str, observable_type: str, seen: Optional[datetime] = None):
         if not seen:
             seen = datetime.now(timezone.utc)
         # NOTE: observable_type must be a valid MISP Type, we need to check that.
@@ -44,20 +43,20 @@ class Observable:
         return observable
 
     @overload
-    def __init__(self, sha256: str, value: str, observable_type: str,
-                 first_seen: str, last_seen: str, warninglists: Optional[str]=None):
-        '''From redis'''
+    def __init__(self, sha256: str, value: str, observable_type: str, first_seen: str, last_seen: str, warninglists: Optional[str] = None):
+        """From redis"""
         ...
 
     @overload
-    def __init__(self, sha256: str, value: str, observable_type: str,
-                 first_seen: datetime, last_seen: datetime, warninglists: Optional[List[WarningList]]=None):
-        '''From python'''
+    def __init__(
+        self, sha256: str, value: str, observable_type: str, first_seen: datetime, last_seen: datetime, warninglists: Optional[List[WarningList]] = None
+    ):
+        """From python"""
         ...
 
     def __init__(self, sha256, value, observable_type, first_seen, last_seen, warninglists=None, warninglist=None):
         self.storage = Storage()
-        self.logger = logging.getLogger(f'{self.__class__.__name__}')
+        self.logger = logging.getLogger(f"{self.__class__.__name__}")
 
         self.sha256 = sha256
         self.value = value
@@ -82,11 +81,11 @@ class Observable:
                     if get_warninglists().get(wl):
                         self.warninglists.append(get_warninglists()[wl])
                     else:
-                        self.logger.warning(f'Unable to find warning list {wl}')
+                        self.logger.warning(f"Unable to find warning list {wl}")
             else:
                 self.warninglists = warninglists
 
-    def __lt__(self, obj: 'Observable') -> bool:
+    def __lt__(self, obj: "Observable") -> bool:
         if self.observable_type < obj.observable_type:
             return True
         elif self.observable_type == obj.observable_type:
@@ -108,12 +107,12 @@ class Observable:
     @property
     def to_dict(self):
         return {
-            'sha256': self.sha256,
-            'value': self.value,
-            'observable_type': self.observable_type,
-            'first_seen': self.first_seen.isoformat(),
-            'last_seen': self.last_seen.isoformat(),
-            'warninglists': json.dumps([wl.name for wl in self.warninglists])
+            "sha256": self.sha256,
+            "value": self.value,
+            "observable_type": self.observable_type,
+            "first_seen": self.first_seen.isoformat(),
+            "last_seen": self.last_seen.isoformat(),
+            "warninglists": json.dumps([wl.name for wl in self.warninglists]),
         }
 
     def store(self):

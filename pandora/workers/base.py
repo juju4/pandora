@@ -20,9 +20,7 @@ from ..task import Task
 
 
 class BaseWorker(multiprocessing.Process):
-
-    def __init__(self, module: str, worker_id: int, cache: str, timeout: str,
-                 loglevel: int=logging.INFO, **options):
+    def __init__(self, module: str, worker_id: int, cache: str, timeout: str, loglevel: int = logging.INFO, **options):
         """
         Create a worker.
         :param module: module of the worker
@@ -30,34 +28,34 @@ class BaseWorker(multiprocessing.Process):
         :param cache: cache time for module
         :param timeout: timeout for module
         """
-        super().__init__(name=f'{module}-{worker_id}', daemon=True)
+        super().__init__(name=f"{module}-{worker_id}", daemon=True)
         self.loglevel = loglevel
         self.logger = logging.getLogger(module)
         self.logger.setLevel(loglevel)
-        self.logger.info(f'Initializing {self.name}')
+        self.logger.info(f"Initializing {self.name}")
 
         self.redis_pool_cache: ConnectionPool = ConnectionPool(
-            connection_class=UnixDomainSocketConnection,
-            path=get_socket_path('cache'), decode_responses=True)
+            connection_class=UnixDomainSocketConnection, path=get_socket_path("cache"), decode_responses=True
+        )
 
         self.module = module
-        self.logger.debug('Create redis stream group...')
+        self.logger.debug("Create redis stream group...")
         self.disabled = False
         try:
-            self.redis.xgroup_create(name='tasks_queue', groupname=self.module, mkstream=True)
-            self.logger.debug('Redis stream group created.')
+            self.redis.xgroup_create(name="tasks_queue", groupname=self.module, mkstream=True)
+            self.logger.debug("Redis stream group created.")
         except ResponseError:
-            self.logger.debug('Redis stream group already exists.')
+            self.logger.debug("Redis stream group already exists.")
         except ConnectionError:
-            self.logger.critical('Redis not started, shutting down.')
+            self.logger.critical("Redis not started, shutting down.")
             self.disabled = True
         except Exception as e:
-            self.logger.critical(f'Unexpected error, shutting down: {e}.')
+            self.logger.critical(f"Unexpected error, shutting down: {e}.")
             self.disabled = True
         finally:
             if self.disabled:
-                self.logger.critical(f'General error, unable to initialize the workers for {module}.')
-                raise PandoraException(f'General error, unable to initialize the workers for {module}.')
+                self.logger.critical(f"General error, unable to initialize the workers for {module}.")
+                raise PandoraException(f"General error, unable to initialize the workers for {module}.")
 
         self.storage = Storage()
 
@@ -90,7 +88,7 @@ class BaseWorker(multiprocessing.Process):
         else:
             yield
 
-    def analyse(self, task: Task, report: Report, manual_trigger: bool=False) -> None:
+    def analyse(self, task: Task, report: Report, manual_trigger: bool = False) -> None:
         """
         Analyse task and save results in task object.
         This method has to be overwritten in a subclass.
@@ -103,32 +101,27 @@ class BaseWorker(multiprocessing.Process):
         # 2. Process the task on the module
         # 3. Store result (good or bad), update task object in redis with results
         #    update cache if relevant. Do not store cache on error
-        raise NotImplementedError('Stuff this module is doing with this task')
+        raise NotImplementedError("Stuff this module is doing with this task")
 
     def _read_stream(self) -> Tuple[str, List[str], Optional[str]]:
-        _, entries = self.redis.xreadgroup(
-            groupname=self.module, consumername=self.name, streams={'tasks_queue': '>'},
-            block=0, count=1
-        )[0]
+        _, entries = self.redis.xreadgroup(groupname=self.module, consumername=self.name, streams={"tasks_queue": ">"}, block=0, count=1)[0]
         rid, values = entries[0]
-        return (values['task_uuid'],
-                json.loads(values['disabled_workers']) if values.get('disabled_workers') else [],
-                values.get('manual_worker'))
+        return (values["task_uuid"], json.loads(values["disabled_workers"]) if values.get("disabled_workers") else [], values.get("manual_worker"))
 
     def run(self):
         """
         Run current worker and execute tasks from queue.
         """
-        self.logger.info('Worker is running...')
+        self.logger.info("Worker is running...")
 
         while True:
             try:
-                self.logger.debug('Waiting for new task...')
+                self.logger.debug("Waiting for new task...")
                 task_uuid, disabled_workers, manual_worker = self._read_stream()
-                self.logger.debug(f'Got new task {task_uuid}')
+                self.logger.debug(f"Got new task {task_uuid}")
 
                 if self.module in disabled_workers:
-                    self.logger.debug(f'Disabled for this task ({task_uuid})')
+                    self.logger.debug(f"Disabled for this task ({task_uuid})")
                     continue
 
                 task_data = self.storage.get_task(task_uuid)
@@ -150,13 +143,13 @@ class BaseWorker(multiprocessing.Process):
                         with self._timeout_context():
                             self.analyse(task, report, self.module == manual_worker)
                 except TimeoutError:
-                    e = f'timeout on analyse call after {self.timeout}s'
+                    e = f"timeout on analyse call after {self.timeout}s"
                     self.logger.error(e)
                     report.status = Status.ERROR
                 except Exception as e:
                     # TODO: bubble up the error to the user (if safe, may want to do that on a module by module basis)
-                    err = f'{repr(e)}\n{traceback.format_exc()}'
-                    self.logger.error(f'unknown error during analysis : {err}')
+                    err = f"{repr(e)}\n{traceback.format_exc()}"
+                    self.logger.error(f"unknown error during analysis : {err}")
                     report.status = Status.ERROR
                 else:
                     if report.status == Status.RUNNING:
@@ -164,13 +157,13 @@ class BaseWorker(multiprocessing.Process):
                         report.status = Status.CLEAN
                 finally:
                     self.storage.set_report(report.to_dict)
-                    self.logger.debug(f'Done with task {task_uuid}.')
+                    self.logger.debug(f"Done with task {task_uuid}.")
 
             except AssertionError as e:
-                self.logger.critical(f'assertion error with current task : {e}')
+                self.logger.critical(f"assertion error with current task : {e}")
             except ConnectionError:
-                self.logger.critical('Redis is gone, shutting down.')
+                self.logger.critical("Redis is gone, shutting down.")
             except FileNotFoundError as e:
-                self.logger.critical(f'unable to reach redis socket, shutting down : {e}')
+                self.logger.critical(f"unable to reach redis socket, shutting down : {e}")
             except BaseException as e:
-                self.logger.critical(f'unknown error with current task : {repr(e)}\n{traceback.format_exc()}')
+                self.logger.critical(f"unknown error with current task : {repr(e)}\n{traceback.format_exc()}")
